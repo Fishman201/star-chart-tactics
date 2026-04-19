@@ -51,7 +51,8 @@ export function useEngine() {
                 wps: 1
             }));
 
-            engineRef.current.emitStateUpdate();
+            // Finalize initialization and draw cards
+            engineRef.current.startPlayerTurn();
         }
     }, []);
 

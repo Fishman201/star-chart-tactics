@@ -1,0 +1,157 @@
+.targeting-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 5, 0, 0.85);
+    /* Dark terminal background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    font-family: "'Press Start 2P', 'Courier New', Courier, monospace";
+}
+
+.crt-scanlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+}
+
+.targeting-panel {
+    background-color: #000;
+    border: 2px solid #39ff14;
+    /* UEF Neon Green */
+    box-shadow: 0 0 15px #39ff14, inset 0 0 15px #39ff14;
+    padding: 30px;
+    width: 600px;
+    max-width: 90%;
+    position: relative;
+}
+
+.targeting-header {
+    color: #39ff14;
+    text-shadow: 0 0 5px #39ff14;
+    margin-bottom: 30px;
+    border-bottom: 1px dashed #39ff14;
+    padding-bottom: 10px;
+}
+
+.targeting-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+    letter-spacing: 1px;
+}
+
+.blink {
+    font-size: 0.7rem;
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Ship Diagram Grid */
+.ship-wireframe-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
+    justify-items: center;
+    margin-bottom: 30px;
+}
+
+.subsystem-btn {
+    background: transparent;
+    border: 1px solid currentColor;
+    color: currentColor;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    text-align: center;
+    width: 220px;
+}
+
+.subsystem-btn:hover:not(:disabled) {
+    background: currentColor;
+    color: #000;
+    box-shadow: 0 0 20px currentColor;
+}
+
+.subsystem-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+.bracket-left,
+.bracket-right {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.subsystem-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sys-label {
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.sys-status {
+    font-size: 0.6rem;
+    opacity: 0.8;
+}
+
+/* Status Colors */
+.status-green {
+    color: #39ff14;
+    text-shadow: 0 0 5px #39ff14;
+}
+
+.status-amber {
+    color: #ffb000;
+    text-shadow: 0 0 5px #ffb000;
+}
+
+.status-red {
+    color: #ff003c;
+    text-shadow: 0 0 5px #ff003c;
+}
+
+.targeting-footer {
+    text-align: right;
+    margin-top: 20px;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #ff00ff;
+    /* Nurk Magenta for cancel/abort actions */
+    border: 1px solid #ff00ff;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.btn-cancel:hover {
+    background: #ff00ff;
+    color: #000;
+    box-shadow: 0 0 10px #ff00ff;
+}

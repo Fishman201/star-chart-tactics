@@ -7,11 +7,20 @@ export const HUD = ({ state, engine, onEndTurn }) => {
   const player = ships.find(e => e.id === 'player_hero');
   const maxCardsPerTurn = 2;
 
-  if (!player || !cardSystem) return null;
+  if (!player) return null;
 
-  const hpPct = (player.hp / player.maxHp) * 100;
-  const shieldPct = (player.shields / player.maxShields) * 100;
-  const heatPct = player.reactorHeat;
+  // Fallback for missing card system (initialization delay)
+  if (!cardSystem) {
+    return (
+        <div style={{ padding: 20, color: '#00ff88', fontFamily: "'Press Start 2P', monospace", fontSize: 10 }}>
+            ◈ BOOTING TACTICAL COMPUTER...
+        </div>
+    );
+  }
+
+  const hpPct = (player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0) || 0;
+  const shieldPct = (player.maxShields > 0 ? (player.shields / player.maxShields) * 100 : 0) || 0;
+  const heatPct = player.reactorHeat || 0;
 
   const isPlayerPhase = turnPhase === 'PLAYER_TURN';
 
@@ -35,14 +44,36 @@ export const HUD = ({ state, engine, onEndTurn }) => {
         <StatBar label="SHIELDS" value={player.shields} max={player.maxShields} pct={shieldPct} color="#4499ff" />
 
         {/* Reactor Heat */}
-        <StatBar
-          label="REACTOR HEAT"
-          value={`${Math.round(heatPct)}%`}
-          max={100}
-          pct={heatPct}
-          color={heatPct > 75 ? '#ff3300' : heatPct > 50 ? '#ff9900' : '#ff6600'}
-          warning={null} /* Stalled logic not yet in engine heatmap */
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <StatBar
+            label="REACTOR HEAT"
+            value={`${Math.round(heatPct)}%`}
+            max={100}
+            pct={heatPct}
+            color={heatPct > 75 ? '#ff3300' : heatPct > 50 ? '#ff9900' : '#ff6600'}
+            warning={player.statusEffects?.includes('stalled')}
+          />
+          <button 
+            disabled={!isPlayerPhase || cardSystem.actionPoints < 1 || heatPct === 0 || player.statusEffects?.includes('stalled')}
+            onClick={() => {
+              if (engine.cardSystem.ventCore(engine)) {
+                engine.emitStateUpdate();
+              }
+            }}
+            style={{
+              background: '#221100',
+              border: '1px solid #ff9900',
+              color: '#ff9900',
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: '8px',
+              padding: '6px 8px',
+              cursor: (!isPlayerPhase || cardSystem.actionPoints < 1 || heatPct === 0 || player.statusEffects?.includes('stalled')) ? 'not-allowed' : 'pointer',
+              opacity: (!isPlayerPhase || cardSystem.actionPoints < 1 || heatPct === 0 || player.statusEffects?.includes('stalled')) ? 0.3 : 1
+            }}
+          >
+            VENT (1AP)
+          </button>
+        </div>
 
         <div style={{ flex: 1 }} />
 

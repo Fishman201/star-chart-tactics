@@ -26,7 +26,7 @@ export default class CardSystem {
     drawCards(amount) {
         for (let i = 0; i < amount; i++) {
             if (this.hand.length >= 7) break;
-            
+
             if (this.deck.length === 0) {
                 if (this.discard.length === 0) break;
                 this.deck = [...this.discard];
@@ -42,7 +42,7 @@ export default class CardSystem {
     canPlayCard(cardId) {
         const card = CardDatabase[cardId];
         if (!card) return { allowed: false, reason: "Card does not exist" };
-        
+
         if (!this.hand.includes(cardId)) {
             return { allowed: false, reason: "Card not in hand" };
         }
@@ -62,7 +62,7 @@ export default class CardSystem {
         return { allowed: true };
     }
 
-    async playCard(cardId, targetEntity, manager) {
+    async playCard(cardId, targetEntity, manager, options = {}) {
         const validation = this.canPlayCard(cardId);
         if (!validation.allowed) {
             console.warn(`Cannot play card ${cardId}: ${validation.reason}`);
@@ -70,12 +70,12 @@ export default class CardSystem {
         }
 
         const card = CardDatabase[cardId];
-        
+
         // Apply costs
         this.actionPoints -= card.cost;
         this.casterShip.reactorHeat += card.heatGenerated;
         if (manager) manager.addLog(`${this.casterShip.displayName} played ${card.name}.`);
-        
+
         // Track card play
         this.cardsPlayedThisTurn++;
         if (cardId === 'rapid_reboot') {
@@ -88,7 +88,15 @@ export default class CardSystem {
         this.discard.push(cardId);
 
         // Execute effect
-        await card.execute(this.casterShip, targetEntity, manager);
+        // Support both card definition formats (play vs execute)
+        const targetId = typeof targetEntity === 'string' ? targetEntity : targetEntity?.id;
+        if (typeof card.play === 'function') {
+            await card.play(manager, this.casterShip.id, targetId, options);
+        } else if (typeof card.execute === 'function') {
+            await card.execute(this.casterShip, targetEntity, manager, options);
+        }
+
+        if (manager) manager.emitStateUpdate();
 
         return true;
     }
@@ -97,7 +105,7 @@ export default class CardSystem {
         // Calculate AP rollover (max 1)
         this.rolledOverAP = Math.min(1, Math.floor(this.actionPoints / 2));
         this.actionPoints = this.maxActionPoints + this.rolledOverAP;
-        
+
         this.cardsPlayedThisTurn = 0;
         this.drawCards(2);
     }
@@ -108,14 +116,14 @@ export default class CardSystem {
         } else {
             this.deck = [...this.deck, ...this.hand, ...this.discard];
         }
-        
+
         this.hand = [];
         this.discard = [];
         this.rapidRebootUsesThisCombat = 0;
         this.actionPoints = this.maxActionPoints;
         this.rolledOverAP = 0;
         this.cardsPlayedThisTurn = 0;
-        
+
         this.shuffleDeck();
         this.drawCards(5);
     }

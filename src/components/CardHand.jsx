@@ -84,7 +84,7 @@ export const CardHand = ({ hand, ap, cardsPlayed, maxCardsPerTurn, selectedCardI
               paddingTop: 4,
               marginTop: 4,
             }}>
-              {card.description}
+              {card?.description || ''}
             </div>
 
             {/* Cost row */}
@@ -95,8 +95,8 @@ export const CardHand = ({ hand, ap, cardsPlayed, maxCardsPerTurn, selectedCardI
               fontSize: 8,
               fontFamily: "'Press Start 2P', monospace",
             }}>
-              <span style={{ color: '#ffd700' }}>{card.cost} AP</span>
-              {card.heatGenerated > 0 && (
+              <span style={{ color: '#ffd700' }}>{card?.cost ?? 0} AP</span>
+              {(card?.heatGenerated ?? 0) > 0 && (
                 <span style={{ color: '#ff6600' }}>+{card.heatGenerated}🌡</span>
               )}
             </div>

@@ -1,0 +1,146 @@
+.targeting-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 5, 0, 0.9); /* Dark terminal background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.crt-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.targeting-panel {
+  background-color: #000;
+  border: 2px solid #00ff88;
+  box-shadow: 0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 15px rgba(0, 255, 136, 0.2);
+  padding: 40px;
+  width: 700px;
+  max-width: 90vw;
+  position: relative;
+  z-index: 2;
+}
+
+.targeting-header {
+  color: #00ff88;
+  text-shadow: 0 0 8px #00ff88;
+  margin-bottom: 40px;
+  border-bottom: 1px dashed rgba(0, 255, 136, 0.6);
+  padding-bottom: 15px;
+}
+
+.targeting-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.6rem;
+  letter-spacing: 2px;
+}
+
+.blink {
+  animation: blinker 1.5s linear infinite;
+  font-size: 0.9rem;
+  color: #ffd700;
+}
+
+@keyframes blinker {
+  50% { opacity: 0.3; }
+}
+
+/* Ship Diagram Grid */
+.ship-wireframe-grid {
+  display: grid;
+  grid-template-areas: 
+    ". weapons ."
+    "lifeSupport hull engines";
+  grid-gap: 24px;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.subsystem-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid currentColor;
+  color: currentColor;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  width: 200px;
+}
+
+.subsystem-btn:hover:not(:disabled) {
+  background: currentColor;
+  color: #000;
+  box-shadow: 0 0 30px currentColor;
+  transform: translateY(-2px);
+}
+
+.subsystem-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.bracket-left, .bracket-right {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.subsystem-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sys-label { font-weight: bold; font-size: 1.15rem; letter-spacing: 1px; }
+.sys-status { font-size: 0.8rem; opacity: 0.7; font-family: monospace; }
+
+/* Status Colors */
+.status-green { color: #00ff88; }
+.status-amber { color: #ffb000; }
+.status-red   { color: #ff4444; }
+
+/* Grid Area Mapping */
+.subsystem-btn:nth-child(1) { grid-area: weapons; }
+.subsystem-btn:nth-child(2) { grid-area: engines; }
+.subsystem-btn:nth-child(3) { grid-area: hull; }
+.subsystem-btn:nth-child(4) { grid-area: lifeSupport; }
+
+.targeting-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: #ff4444;
+  border: 1px solid #ff4444;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #ff4444;
+  color: #000;
+  box-shadow: 0 0 15px #ff4444;
+}

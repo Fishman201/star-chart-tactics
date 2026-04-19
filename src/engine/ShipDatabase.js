@@ -16,7 +16,8 @@ const defaultSubsystems = () => ({
     weapons: { label: 'WEAPONS', status: 'operational' },
     engines: { label: 'ENGINES', status: 'operational' },
     hull: { label: 'HULL', status: 'operational' },
-    lifeSupport: { label: 'LIFE SUPPORT', status: 'operational' }
+    lifeSupport: { label: 'LIFE SUPPORT', status: 'operational' },
+    bridge: { label: 'BRIDGE', status: 'operational' }
 });
 
 export const ShipDatabase = {
@@ -63,7 +64,7 @@ export const ShipDatabase = {
         subsystems: defaultSubsystems(),
         deck: [
             'target_lock',
-            'sparc_core_surge',
+            'sparc_surge',
             'emergency_coolant',
             'rapid_reboot'
         ]
