@@ -216,40 +216,52 @@ Archangel suits are **Vehicle Scale**. They ignore personnel-scale cover and red
 
 ---
 
-## 9. Engine Architecture (Key Classes)
+---
+
+## 9. Engine Architecture (Current Implementation)
 
 ### `GridCombatManager` (`src/engine/GridCombatManager.js`)
-The **game orchestrator**. Owns the grid matrix, turn phases (Player vs. Enemy), all ShipEntity instances, and emits state snapshots to React.
-- Key methods: `startPlayerTurn()`, `endPlayerTurn()`, `resolveEnemyTurn()`, `moveUnit(id, targetCell)`, `attackUnit(attackerId, targetId)`, `getStateSnapshot()`.
-
-### `ShipEntity` (`src/engine/ShipEntity.js`)
-Base class for all units — both player and enemy.
-- Properties: `maxHp`, `hp`, `maxShields`, `shields`, `baseAccuracy`, `evasion`, `speed`, `reactorHeat` (player only), `factionTraits` (AI only).
-- Methods: `takeDamage(amount)`, `applyStatusEffect(effect)`, `generateHeat(amount)`.
+The **game orchestrator**. Now fully integrated with React via a constructor callback.
+- **State Snapshots**: Emits a full serializable snapshot on every change (`getStateSnapshot`).
+- **Turn Loop**: Handles `PLAYER_TURN` and `ENEMY_TURN` transitions. Enemy turns involve a 2-second delay before resetting.
+- **Ship Registration**: Dynamically initializes the `CardSystem` when the first UEF ship is registered.
 
 ### `CardSystem` (`src/engine/CardSystem.js`)
-Manages the player's deck, hand, AP, and card resolution.
-- Properties: `deck[]`, `hand[]`, `discard[]`, `actionPoints`, `cardsPlayedThisTurn`.
-- Methods: `drawCards(amount)`, `playCard(cardId, target)`, `shuffleDeck()`, `endTurnReset()`.
+Manages the player's resource pool and deck state.
+- **AP Economy**: 3 base AP + max 1 rollover AP.
+- **Validation**: `canPlayCard(id)` enforces AP costs, play counts (max 2/turn), and card-specific limits.
+- **Lifecycle**: Handles opening draws (5), per-turn draws (2), and deck reshuffling using the Fisher-Yates algorithm.
 
 ### `CardDatabase` (`src/engine/cards/CardDatabase.js`)
-Static card definitions. Each card is a plain JS object:
-```js
-{
-  id: 'snap_dodge',
-  name: 'Snap Dodge',
-  suit: 'Navigator',
-  cost: 1,           // AP cost
-  heatGenerated: 5,  // Reactor heat added
-  description: 'Reaction. Roll vs incoming attack. On success, attack misses.',
-  execute: (caster, target, manager) => { /* ... */ }
-}
-```
-Current cards: `snap_dodge`, `rapid_reboot`, `target_lock`, `make_it_so`.
+Contains 10 unique bridge crew cards:
+1.  **Make It So** (Captain): Grant advantage.
+2.  **Snap Dodge** (Navigator): Toggle evasion flag.
+3.  **Target Lock** (Weapons): Disable subsystems (WIP logic).
+4.  **Rapid Reboot** (Science): 50% Shield restore (2/combat cap).
+5.  **Emergency Coolant** (Science): Reset Reactor Heat.
+6.  **Flak Screen** (Weapons): Set flak modifier.
+7.  **Sparc-Core Surge** (Captain): +1 AP for 15 Heat.
+8.  **Evasive Stunt** (Navigator): Movement + Break Steady Vector.
+9.  **Damage Control** (Science): Remove status effects.
+10. **Grav-Repulsor** (Science): Push units in range 2 by 3 tiles.
 
 ---
 
-## 10. Visual / UX Guidelines
+## 10. Current Project Status
+
+| Feature | Status |
+|---|---|
+| **Engine Core** | ✅ Functional (ES6 Classes) |
+| **UI Sync** | ✅ Functional (engineRef + getStateSnapshot) |
+| **Grid Movement** | ✅ Functional (costs 1 AP, updates position) |
+| **Card Economy** | ✅ Functional (AP, Deck, Hand, Discard) |
+| **Tactical Combat** | 🔄 WIP (Engine handles card effects; AI logic is a delay stub) |
+| **Visuals** | ✅ Functional (Neon CRT theme, ship icons, range highlights) |
+
+---
+
+## 11. Visual / UX Guidelines
+... (rest of the file) ...
 
 - **Aesthetic:** Retro CRT monitor / terminal. Neon colour palette.
   - UEF units → Neon Green (`#39ff14`)
