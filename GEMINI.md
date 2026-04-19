@@ -1,3 +1,10 @@
+// Example of the shape expected from getStateSnapshot().ships[targetId]
+subsystems: {
+  weapons: { label: 'WEAPONS', status: 'operational' }, // operational, damaged, destroyed
+  engines: { label: 'ENGINES', status: 'damaged' },     // operational, damaged, offline
+  hull: { label: 'HULL', status: 'operational' },       // operational, breached
+  lifeSupport: { label: 'LIFE SUPPORT', status: 'operational' } // operational, damaged
+}
 # Star Chart: Tactics — Gemini Code Context
 
 This file provides full context for AI-assisted development of the **Star Chart: Tactics** project.
@@ -17,7 +24,227 @@ The game pivots away from a 4X Civilisation-style board game and instead impleme
 
 | Layer | Technology |
 |---|---|
-| Framework | React 18 (via Vite) |
+| Framework | React 18 (via Vite) |import React from 'react';
+import './SubsystemTargeting.css';
+
+export default function SubsystemTargetingUI({ 
+  targetShip, 
+  isActive, 
+  onSelectSubsystem, 
+  onCancel 
+}) {
+  if (!isActive || !targetShip) return null;
+
+  // Helper to map engine status to our neon CSS classes
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case 'operational': return 'status-green';
+      case 'damaged': return 'status-amber';
+      case 'destroyed':
+      case 'offline':
+      case 'breached':
+        return 'status-red';
+      default: return 'status-green';
+    }
+  };
+
+  return (
+    <div className="targeting-overlay">
+      {/* Scanline wrapper for the CRT effect */}
+      <div className="crt-scanlines"></div>
+      
+      <div className="targeting-panel crt-border">
+        <header className="targeting-header">
+          <h2>&gt; TACTICAL TARGET LOCK INITIALIZED</h2>
+          <p className="blink">AWAITING SUBSYSTEM SELECTION FOR: [ {targetShip.name.toUpperCase()} ]</p>
+        </header>
+
+        {/* Abstract ship wireframe layout */}
+        <div className="ship-wireframe-grid">
+          {Object.entries(targetShip.subsystems).map(([sysKey, sysData]) => {
+            const statusClass = getStatusColorClass(sysData.status);
+            const isSelectable = sysData.status !== 'destroyed' && sysData.status !== 'offline';
+
+            return (
+              <button
+                key={sysKey}
+                className={`subsystem-btn ${statusClass}`}
+                disabled={!isSelectable}
+                onClick={() => onSelectSubsystem(targetShip.id, sysKey)}
+              >
+                <div className="bracket-left">[</div>
+                <div className="subsystem-info">
+                  <span className="sys-label">{sysData.label}</span>
+                  <span className="sys-status">SYS_{sysData.status.toUpperCase()}</span>
+                </div>
+                <div className="bracket-right">]</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <footer className="targeting-footer">
+          <button className="btn-cancel" onClick={onCancel}>
+            [ ESC ] ABORT LOCK
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+.targeting-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 5, 0, 0.85); /* Dark terminal background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.crt-scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+}
+
+.targeting-panel {
+  background-color: #000;
+  border: 2px solid #39ff14; /* UEF Neon Green */
+  box-shadow: 0 0 15px #39ff14, inset 0 0 15px #39ff14;
+  padding: 30px;
+  width: 600px;
+  max-width: 90%;
+  position: relative;
+}
+
+.targeting-header {
+  color: #39ff14;
+  text-shadow: 0 0 5px #39ff14;
+  margin-bottom: 30px;
+  border-bottom: 1px dashed #39ff14;
+  padding-bottom: 10px;
+}
+
+.targeting-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+}
+
+.blink {
+  animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+  50% { opacity: 0; }
+}
+
+/* Ship Diagram Grid */
+.ship-wireframe-grid {
+  display: grid;
+  grid-template-areas: 
+    ". weapons ."
+    "lifeSupport hull engines";
+  grid-gap: 20px;
+  justify-items: center;
+  margin-bottom: 30px;
+}
+
+.subsystem-btn {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: currentColor;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-align: center;
+  width: 180px;
+}
+
+.subsystem-btn:hover:not(:disabled) {
+  background: currentColor;
+  color: #000;
+  box-shadow: 0 0 20px currentColor;
+}
+
+.subsystem-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.bracket-left, .bracket-right {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.subsystem-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sys-label { font-weight: bold; font-size: 1.1rem; }
+.sys-status { font-size: 0.8rem; opacity: 0.8; }
+
+/* Status Colors */
+.status-green { color: #39ff14; text-shadow: 0 0 5px #39ff14; }
+.status-amber { color: #ffb000; text-shadow: 0 0 5px #ffb000; }
+.status-red   { color: #ff003c; text-shadow: 0 0 5px #ff003c; }
+
+/* Assigning Grid Areas dynamically based on child keys (requires setting nth-child or adding specific classes in JSX map, but for simplicity here's a generic flow) */
+.subsystem-btn:nth-child(1) { grid-area: weapons; }
+.subsystem-btn:nth-child(2) { grid-area: engines; }
+.subsystem-btn:nth-child(3) { grid-area: hull; }
+.subsystem-btn:nth-child(4) { grid-area: lifeSupport; }
+
+.targeting-footer {
+  text-align: right;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: #ff00ff; /* Nurk Magenta for cancel/abort actions */
+  border: 1px solid #ff00ff;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+}
+
+.btn-cancel:hover {
+  background: #ff00ff;
+  color: #000;
+  box-shadow: 0 0 10px #ff00ff;
+}
+// Inside App.jsx
+<SubsystemTargetingUI 
+  isActive={uiState.isTargetingSubsystem}
+  targetShip={uiState.selectedEnemyShip}
+  onSelectSubsystem={(targetId, subsystemId) => {
+     // 1. Tell the pure JS engine to apply the card effect
+     engineRef.current.playCard('target_lock', targetId, { subsystem: subsystemId });
+     // 2. Clear UI state
+     setUiState({ ...uiState, isTargetingSubsystem: false });
+     // 3. Re-sync React state with engine snapshot
+     syncStateWithEngine();
+  }}
+  onCancel={() => setUiState({ ...uiState, isTargetingSubsystem: false })}
+/>
+
 | Language | JavaScript (ES6+ classes) |
 | Styling | Vanilla CSS with a retro CRT neon aesthetic |
 | State | Pure JS game engine classes; React is the **View only** |
@@ -221,29 +448,24 @@ Archangel suits are **Vehicle Scale**. They ignore personnel-scale cover and red
 ## 9. Engine Architecture (Current Implementation)
 
 ### `GridCombatManager` (`src/engine/GridCombatManager.js`)
-The **game orchestrator**. Now fully integrated with React via a constructor callback.
-- **State Snapshots**: Emits a full serializable snapshot on every change (`getStateSnapshot`).
-- **Turn Loop**: Handles `PLAYER_TURN` and `ENEMY_TURN` transitions. Enemy turns involve a 2-second delay before resetting.
-- **Ship Registration**: Dynamically initializes the `CardSystem` when the first UEF ship is registered.
+The **game orchestrator**.
+- **Deterministic Combat**: Uses a fixed threshold: `WPS + 10 >= Target AC`. Critical Hit occurs at `Threshold >= AC + 5`.
+- **Combat Logic**: `executeAttack(attacker, target, weapon)` handles damage calculation and subsystem trigger checks.
+- **AI Loop**: Enemies use a timed sequence of actions (Skill/Card -> Move -> Attack). AI skills are simulated via a turn-based cooldown system.
+- **Logging**: Maintains a 50-entry log of all tactical events.
 
-### `CardSystem` (`src/engine/CardSystem.js`)
-Manages the player's resource pool and deck state.
-- **AP Economy**: 3 base AP + max 1 rollover AP.
-- **Validation**: `canPlayCard(id)` enforces AP costs, play counts (max 2/turn), and card-specific limits.
-- **Lifecycle**: Handles opening draws (5), per-turn draws (2), and deck reshuffling using the Fisher-Yates algorithm.
+### `ShipEntity` (`src/engine/ShipEntity.js`)
+- **Status Effects**: Tracks active buffs/debuffs (e.g., `hull_breach`, `engines_damaged`) with turn-based durations.
+- **Damage Handling**: `takeDamage(amount, manager, isCrit)` asynchronously handles shield depletion, hull strikes, and subsystem rolls.
+- **Turn Hooks**: `onTurnStart` handles DoTs (Life Support) and effect expiration.
 
-### `CardDatabase` (`src/engine/cards/CardDatabase.js`)
-Contains 10 unique bridge crew cards:
-1.  **Make It So** (Captain): Grant advantage.
-2.  **Snap Dodge** (Navigator): Toggle evasion flag.
-3.  **Target Lock** (Weapons): Disable subsystems (WIP logic).
-4.  **Rapid Reboot** (Science): 50% Shield restore (2/combat cap).
-5.  **Emergency Coolant** (Science): Reset Reactor Heat.
-6.  **Flak Screen** (Weapons): Set flak modifier.
-7.  **Sparc-Core Surge** (Captain): +1 AP for 15 Heat.
-8.  **Evasive Stunt** (Navigator): Movement + Break Steady Vector.
-9.  **Damage Control** (Science): Remove status effects.
-10. **Grav-Repulsor** (Science): Push units in range 2 by 3 tiles.
+### `SubsystemTable` (`src/engine/combat/SubsystemTable.js`)
+Triggered on Critical Hits or Hull Strikes. Rolls 1d20:
+- **1-5 (Weapons)**: Accuracy reduction.
+- **6-10 (Engines)**: Speed halved.
+- **11-15 (Hull)**: Breach (+2 damage taken).
+- **16-19 (Life Support)**: 1 HP damage/turn.
+- **20 (Bridge)**: Stun (Turn ends immediately).
 
 ---
 
@@ -252,10 +474,9 @@ Contains 10 unique bridge crew cards:
 | Feature | Status |
 |---|---|
 | **Engine Core** | ✅ Functional (ES6 Classes) |
+| **Tactical Combat** | ✅ Functional (Deterministic Hitting, Subsystem Table) |
+| **AI Logic** | ✅ Functional (Sequence: Card -> Move -> Attack) |
 | **UI Sync** | ✅ Functional (engineRef + getStateSnapshot) |
-| **Grid Movement** | ✅ Functional (costs 1 AP, updates position) |
-| **Card Economy** | ✅ Functional (AP, Deck, Hand, Discard) |
-| **Tactical Combat** | 🔄 WIP (Engine handles card effects; AI logic is a delay stub) |
 | **Visuals** | ✅ Functional (Neon CRT theme, ship icons, range highlights) |
 
 ---

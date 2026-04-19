@@ -3,6 +3,7 @@ import { useEngine } from './hooks/useEngine';
 import { GridMap } from './components/GridMap';
 import { CardHand } from './components/CardHand';
 import { HUD } from './components/HUD';
+import { CardDatabase } from './engine/cards/CardDatabase.js';
 import './index.css';
 
 function CombatLog({ logs }) {
@@ -70,10 +71,16 @@ function App() {
     );
   }
 
-  const player = state.entities.find(e => e.id === 'player_hero');
-  const enemies = state.entities.filter(e => e.faction !== 'UEF');
+  const player = state.ships.find(e => e.id === 'player_hero');
+  const enemies = state.ships.filter(e => e.faction !== 'UEF');
   const isGameOver = !player;
   const isVictory = player && enemies.length === 0;
+
+  // Map card IDs in hand to card objects from the database
+  const hand = (state.cardSystem?.hand || []).map((cardId, index) => ({
+    ...CardDatabase[cardId],
+    instanceId: `${cardId}_${index}` // Adding instanceId for UI keys
+  }));
 
   // ── Card selection / play ──────────────────────────────────────────────────
   const handleSelectCard = (cardInstanceId) => {
@@ -85,12 +92,12 @@ function App() {
       return;
     }
 
-    const card = state.hand.find(c => c.instanceId === cardInstanceId);
-    if (!card || !engine.cardSystem.canPlayCard(cardInstanceId)) return;
+    const card = hand.find(c => c.instanceId === cardInstanceId);
+    if (!card || !engine.cardSystem.canPlayCard(card.id).allowed) return;
 
     if (card.targetType === 'SELF') {
       // Play immediately — no target needed
-      engine.cardSystem.playCard(cardInstanceId, null);
+      engine.cardSystem.playCard(card.id, null, engine);
       setSelectedCard(null);
     } else {
       // Weapon or targeted card — enter range-selection mode
@@ -101,12 +108,11 @@ function App() {
   // Called by GridMap when player clicks a valid enemy target
   const handleTargetClick = (enemyId) => {
     if (!selectedCard || !engine) return;
-    const target = engine.entities.find(e => e.id === enemyId);
+    const target = engine.ships.get(enemyId);
     if (!target) return;
 
-    engine.cardSystem.playCard(selectedCard.instanceId, target);
-    engine.checkDeaths();
-    engine.notifyUpdate();
+    engine.cardSystem.playCard(selectedCard.id, target, engine);
+    // engine.checkDeaths(); // Engine handles basic logic for now
     setSelectedCard(null);
   };
 
@@ -137,7 +143,7 @@ function App() {
           ★ STAR CHART: TACTICS
         </span>
         <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: '#555' }}>
-          TURN {state.turnNumber} / {state.activePhase === 'PLAYER' ? '🟢 PLAYER PHASE' : '🔴 ENEMY PHASE'}
+          TURN {state.turnCount} / {state.turnPhase === 'PLAYER_TURN' ? '🟢 PLAYER PHASE' : '🔴 ENEMY PHASE'}
         </span>
 
         {/* Active card indicator */}
@@ -204,10 +210,10 @@ function App() {
           alignItems: 'center',
         }}>
           <CardHand
-            hand={state.hand}
-            ap={state.ap}
-            cardsPlayed={state.cardsPlayed}
-            maxCardsPerTurn={state.maxCardsPerTurn ?? 2}
+            hand={hand}
+            ap={state.cardSystem?.actionPoints || 0}
+            cardsPlayed={state.cardSystem?.cardsPlayedThisTurn || 0}
+            maxCardsPerTurn={2}
             selectedCardId={selectedCard?.instanceId ?? null}
             onSelectCard={handleSelectCard}
           />
@@ -249,8 +255,8 @@ function App() {
         </div>
       )}
 
-      {/* Stall banner */}
-      {state.stalled && (
+      {/* Stall banner - disabled for now */}
+      {/* state.stalled && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0,
           background: '#ff330066',
@@ -261,7 +267,7 @@ function App() {
         }}>
           ⚠ REACTOR STALL — AP LOST — EVASION OFFLINE
         </div>
-      )}
+      ) */}
     </div>
   );
 }

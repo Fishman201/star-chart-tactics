@@ -20,9 +20,9 @@ export const CardHand = ({ hand, ap, cardsPlayed, maxCardsPerTurn, selectedCardI
       flexShrink: 0,
     }}>
       {hand.map((card, i) => {
-        const suitColor = SUIT_COLORS[card.suit?.id] || '#ffffff';
+        const suitColor = SUIT_COLORS[card.suit?.toUpperCase()] || '#ffffff';
         const isSelected = selectedCardId === card.instanceId;
-        const canAfford = ap >= card.apCost;
+        const canAfford = ap >= card.cost;
         const canPlay = canAfford && cardsPlayed < maxCardsPerTurn;
         const disabled = !canPlay;
 
@@ -59,7 +59,7 @@ export const CardHand = ({ hand, ap, cardsPlayed, maxCardsPerTurn, selectedCardI
               textTransform: 'uppercase',
               letterSpacing: 0.5,
             }}>
-              {card.suit?.name || '?'}
+              {card.suit || '?'}
             </div>
 
             {/* Card name */}
@@ -95,7 +95,7 @@ export const CardHand = ({ hand, ap, cardsPlayed, maxCardsPerTurn, selectedCardI
               fontSize: 8,
               fontFamily: "'Press Start 2P', monospace",
             }}>
-              <span style={{ color: '#ffd700' }}>{card.apCost} AP</span>
+              <span style={{ color: '#ffd700' }}>{card.cost} AP</span>
               {card.heatGenerated > 0 && (
                 <span style={{ color: '#ff6600' }}>+{card.heatGenerated}🌡</span>
               )}

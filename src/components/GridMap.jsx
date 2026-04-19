@@ -12,9 +12,9 @@ const FACTION_COLORS = {
 };
 
 export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselectCard }) => {
-  const { gridSize, entities, activePhase } = state;
-  const player = entities.find(e => e.id === 'player_hero');
-  const isPlayerPhase = activePhase === 'PLAYER';
+  const { gridSize, ships, turnPhase } = state;
+  const player = ships.find(e => e.id === 'player_hero');
+  const isPlayerPhase = turnPhase === 'PLAYER_TURN';
 
   // ── What to highlight ──────────────────────────────────────────────────────
   const getHighlight = (col, row) => {
@@ -31,6 +31,7 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
 
       // Within card range
       if (dist <= cardRange) {
+        const entityHere = ships.find(e => e.x === col && e.y === row);
         if (entityHere && entityHere.faction !== 'UEF') return 'in-range-enemy'; // attackable
         if (!entityHere)                                   return 'in-range';     // range tint
       }
@@ -39,7 +40,7 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
 
     // No card selected — show movement range
     if (dist > 0 && dist <= player.speed) {
-      const entityHere = entities.find(e => e.x === col && e.y === row);
+      const entityHere = ships.find(e => e.x === col && e.y === row);
       if (!entityHere) return 'move';
     }
     return null;
@@ -48,7 +49,7 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
   const handleTileClick = (col, row) => {
     if (!isPlayerPhase) return;
 
-    const entityHere = entities.find(e => e.x === col && e.y === row);
+    const entityHere = ships.find(e => e.x === col && e.y === row);
 
     if (selectedCard) {
       // Weapon card targeting
@@ -68,15 +69,15 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
     } else {
       // Movement
       if (!entityHere && player && engine) {
-        engine.moveEntity('player_hero', col, row);
+        engine.moveUnit('player_hero', { x: col, y: row });
       }
     }
   };
 
   // Pre-build highlight map for efficiency
   const tileHighlights = {};
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
+  for (let row = 0; row < gridSize.height; row++) {
+    for (let col = 0; col < gridSize.width; col++) {
       const h = getHighlight(col, row);
       if (h) tileHighlights[`${col},${row}`] = h;
     }
@@ -91,8 +92,8 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
   return (
     <div style={{
       position: 'relative',
-      width: gridSize * TILE_SIZE,
-      height: gridSize * TILE_SIZE,
+      width: gridSize.width * TILE_SIZE,
+      height: gridSize.height * TILE_SIZE,
       background: 'radial-gradient(ellipse at center, #001a10 0%, #000800 100%)',
       border: `2px solid ${isPlayerPhase ? '#00ff8844' : '#ff444422'}`,
       flexShrink: 0,
@@ -115,9 +116,9 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
       ))}
 
       {/* Grid tiles */}
-      {Array.from({ length: gridSize * gridSize }).map((_, idx) => {
-        const col = idx % gridSize;
-        const row = Math.floor(idx / gridSize);
+      {Array.from({ length: gridSize.width * gridSize.height }).map((_, idx) => {
+        const col = idx % gridSize.width;
+        const row = Math.floor(idx / gridSize.width);
         const key = `${col},${row}`;
         const hl = tileHighlights[key];
         const hlStyle = hl ? HIGHLIGHT_STYLES[hl] : {};
@@ -160,7 +161,7 @@ export const GridMap = ({ state, engine, selectedCard, onTargetClick, onDeselect
       )}
 
       {/* Entities */}
-      {entities.map(entity => {
+      {ships.map(entity => {
         const color = FACTION_COLORS[entity.faction] || '#ffffff';
         const isPlayer = entity.id === 'player_hero';
         const hpPct = (entity.hp / entity.maxHp) * 100;

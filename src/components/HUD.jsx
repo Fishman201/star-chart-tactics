@@ -3,17 +3,17 @@ import React from 'react';
 export const HUD = ({ state, engine, onEndTurn }) => {
   if (!state) return null;
 
-  const { ap, heat, stalled, cardsPlayed, deckSize, discardSize, entities, activePhase, turnNumber } = state;
-  const player = entities.find(e => e.id === 'player_hero');
+  const { ships, cardSystem, turnPhase } = state;
+  const player = ships.find(e => e.id === 'player_hero');
   const maxCardsPerTurn = 2;
 
-  if (!player) return null;
+  if (!player || !cardSystem) return null;
 
   const hpPct = (player.hp / player.maxHp) * 100;
   const shieldPct = (player.shields / player.maxShields) * 100;
-  const heatPct = heat;
+  const heatPct = player.reactorHeat;
 
-  const isPlayerPhase = activePhase === 'PLAYER';
+  const isPlayerPhase = turnPhase === 'PLAYER_TURN';
 
   return (
     <div style={{
@@ -37,26 +37,26 @@ export const HUD = ({ state, engine, onEndTurn }) => {
         {/* Reactor Heat */}
         <StatBar
           label="REACTOR HEAT"
-          value={`${Math.round(heat)}%`}
+          value={`${Math.round(heatPct)}%`}
           max={100}
           pct={heatPct}
           color={heatPct > 75 ? '#ff3300' : heatPct > 50 ? '#ff9900' : '#ff6600'}
-          warning={stalled ? 'STALLED!' : null}
+          warning={null} /* Stalled logic not yet in engine heatmap */
         />
 
         <div style={{ flex: 1 }} />
 
         {/* Deck info */}
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: '#888', textAlign: 'right', lineHeight: 1.8 }}>
-          <div>DECK: {deckSize}</div>
-          <div>DISC: {discardSize}</div>
+          <div>DECK: {cardSystem.deckSize}</div>
+          <div>DISC: {cardSystem.discardSize}</div>
         </div>
 
         {/* Cards played indicator */}
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, textAlign: 'center', lineHeight: 1.8 }}>
           <div style={{ color: '#ffd700' }}>PLAYS</div>
-          <div style={{ color: cardsPlayed >= maxCardsPerTurn ? '#ff4444' : '#fff' }}>
-            {cardsPlayed} / {maxCardsPerTurn}
+          <div style={{ color: cardSystem.cardsPlayedThisTurn >= maxCardsPerTurn ? '#ff4444' : '#fff' }}>
+            {cardSystem.cardsPlayedThisTurn} / {maxCardsPerTurn}
           </div>
         </div>
 
@@ -69,9 +69,9 @@ export const HUD = ({ state, engine, onEndTurn }) => {
                 width: 14,
                 height: 14,
                 borderRadius: '50%',
-                background: i < ap ? '#ffd700' : '#222',
+                background: i < cardSystem.actionPoints ? '#ffd700' : '#222',
                 border: '2px solid #ffd70066',
-                boxShadow: i < ap ? '0 0 6px #ffd70088' : 'none',
+                boxShadow: i < cardSystem.actionPoints ? '0 0 6px #ffd70088' : 'none',
               }} />
             ))}
           </div>

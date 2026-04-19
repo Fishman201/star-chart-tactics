@@ -1,3 +1,5 @@
+import SubsystemTable from './combat/SubsystemTable.js';
+
 const SHIP_TYPE_PREFIXES = {
   'Fighter': 'FTR', 'Interceptor': 'INT', 'Frigate': 'FF', 
   'Destroyer': 'DD', 'Cruiser': 'CA', 'Carrier': 'CV', 
@@ -22,9 +24,18 @@ export default class ShipEntity {
     this.maxShields = config.shields || 0;
     this.shields = this.maxShields;
     this.speed = config.speed || 3;
+    this.wps = config.wps || 0;
+    this.ac = config.ac || 15;
     this.reactorHeat = 0;
     this.flags = { steadyVector: true, isEvading: false };
-    this.modifiers = {};
+    this.statusEffects = new Map();
+    this.subsystems = {
+        weapons: true,
+        engines: true,
+        hull: true,
+        lifeSupport: true,
+        bridge: true
+    };
   }
 
   get displayName() {
@@ -33,9 +44,64 @@ export default class ShipEntity {
     return `${factionPrefix}-${typePrefix} ${this.baseName}`;
   }
 
-  applyStatusEffect(effect) { /* ... */ }
-  removeStatusEffect(effect) { /* ... */ }
-  takeDamage(amount) { /* ... */ }
+  applyStatusEffect(effect, duration = 1) {
+    this.statusEffects.set(effect, duration);
+  }
+
+  removeStatusEffect(effect) {
+    this.statusEffects.delete(effect);
+  }
+
+  hasStatus(effect) {
+    return this.statusEffects.has(effect);
+  }
+
+  async takeDamage(amount, manager, isCrit = false) {
+    let remainingDamage = amount;
+    let hitHull = false;
+
+    // Shield logic
+    if (this.shields > 0) {
+        const shieldDamage = Math.min(this.shields, remainingDamage);
+        this.shields -= shieldDamage;
+        remainingDamage -= shieldDamage;
+        if (manager) manager.addLog(`${this.displayName} shields absorb ${shieldDamage} damage! (${this.shields} left)`);
+    }
+
+    // Hull logic
+    if (remainingDamage > 0) {
+        hitHull = true;
+        if (this.hasStatus('hull_breach')) {
+            remainingDamage += 2;
+        }
+
+        this.hp -= remainingDamage;
+        if (manager) manager.addLog(`${this.displayName} hull takes ${remainingDamage} damage!`);
+    }
+
+    // Trigger Subsystem Damage
+    if ((hitHull || isCrit) && this.hp > 0) {
+        SubsystemTable.roll(this, manager);
+    }
+  }
+
+  onTurnStart(manager) {
+    for (let [effect, duration] of this.statusEffects.entries()) {
+        if (effect === 'life_support_breach') {
+            this.hp -= 1;
+            if (manager) manager.addLog(`${this.displayName} takes 1 Life Support damage!`);
+        }
+
+        duration--;
+        if (duration <= 0) {
+            this.statusEffects.delete(effect);
+            if (manager) manager.addLog(`${this.displayName}: Effect ${effect} expired.`);
+        } else {
+            this.statusEffects.set(effect, duration);
+        }
+    }
+    this.flags.isEvading = false;
+  }
 
   serialize() {
     return {
@@ -48,7 +114,10 @@ export default class ShipEntity {
       shields: this.shields,
       maxShields: this.maxShields,
       reactorHeat: this.reactorHeat,
-      isEvading: this.flags.isEvading 
+      isEvading: this.flags.isEvading,
+      wps: this.wps,
+      ac: this.ac,
+      statusEffects: Array.from(this.statusEffects.keys())
     };
   }
 }

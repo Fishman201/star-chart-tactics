@@ -1,50 +1,19 @@
-import { CardDatabase } from './cards/CardDatabase';
+import { CardDatabase } from './cards/CardDatabase.js';
 
-export class CardSystem {
-    constructor(engine) {
-        this.engine = engine; // Reference to GridCombatManager
-        
-        // AP
-        this.maxAP = 3;
-        this.currentAP = this.maxAP;
-        
-        // Deck Management
-        this.deck = [];
+export default class CardSystem {
+    constructor(casterShip, starterDeckIds = []) {
+        this.casterShip = casterShip;
+        this.deck = [...starterDeckIds];
         this.hand = [];
-        this.discardPile = [];
-        
-        this.maxHandSize = 7;
+        this.discard = [];
+        this.actionPoints = 3;
+        this.maxActionPoints = 3;
+        this.rolledOverAP = 0;
         this.cardsPlayedThisTurn = 0;
-        this.maxCardsPerTurn = 2;
-
-        this.initializeDeck();
-    }
-
-    initializeDeck() {
-        const starterIds = [
-            // Weapons — core of the attack system
-            'standard_shot', 'standard_shot', 'standard_shot',
-            'railgun_burst', 'railgun_burst',
-            'missile_salvo', 'missile_salvo',
-            'target_lock',
-            // Navigator
-            'snap_dodge', 'snap_dodge',
-            'focused_evasion',
-            // Science
-            'rapid_reboot',
-            'system_override',
-            'vent_heat',
-            // Captain
-            'make_it_so', 'make_it_so',
-            'all_hands',
-        ];
-
-        this.deck = starterIds.map(id => ({
-            ...CardDatabase.find(c => c.id === id),
-            instanceId: Math.random().toString(36).substr(2, 9)
-        }));
+        this.rapidRebootUsesThisCombat = 0;
 
         this.shuffleDeck();
+        this.drawCards(5);
     }
 
     shuffleDeck() {
@@ -55,84 +24,112 @@ export class CardSystem {
     }
 
     drawCards(amount) {
-        let drawn = 0;
         for (let i = 0; i < amount; i++) {
-            if (this.hand.length >= this.maxHandSize) {
-                this.engine.log(`Hand full. Cannot draw more cards.`);
-                break;
-            }
-
+            if (this.hand.length >= 7) break;
+            
             if (this.deck.length === 0) {
-                if (this.discardPile.length === 0) {
-                   this.engine.log(`Deck and discard pile empty!`);
-                   break; // Out of cards completely
-                }
-                // Reshuffle discards
-                this.deck = [...this.discardPile];
-                this.discardPile = [];
+                if (this.discard.length === 0) break;
+                this.deck = [...this.discard];
+                this.discard = [];
                 this.shuffleDeck();
-                this.engine.log(`Discard pile reshuffled into deck.`);
             }
 
-            const card = this.deck.pop();
-            this.hand.push(card);
-            drawn++;
+            const cardId = this.deck.pop();
+            if (cardId) this.hand.push(cardId);
         }
-        return drawn;
     }
 
-    canPlayCard(cardInstanceId) {
-        const card = this.hand.find(c => c.instanceId === cardInstanceId);
-        if (!card) return false;
-
-        const playerShip = this.engine.getPlayerShip();
-        if (playerShip.isStalled) return false;
-
-        if (this.currentAP < card.apCost) return false;
-        if (this.cardsPlayedThisTurn >= this.maxCardsPerTurn) return false;
+    canPlayCard(cardId) {
+        const card = CardDatabase[cardId];
+        if (!card) return { allowed: false, reason: "Card does not exist" };
         
-        // Heat check? Manual says powerful cards generate heat, but doesn't prevent playing them if it pushes to 100%.
-        return true;
-    }
-
-    playCard(cardInstanceId, targetEntity = null) {
-        if (!this.canPlayCard(cardInstanceId)) return false;
-
-        const cardIndex = this.hand.findIndex(c => c.instanceId === cardInstanceId);
-        const card = this.hand[cardIndex];
-
-        // Cost resolution
-        this.currentAP -= card.apCost;
-        this.cardsPlayedThisTurn += 1;
-
-        const playerShip = this.engine.getPlayerShip();
-        // Negative heatGenerated = cooling (e.g. Emergency Vent)
-        const stalled = card.heatGenerated >= 0
-            ? playerShip.addHeat(card.heatGenerated)
-            : (playerShip.reactorHeat = Math.max(0, playerShip.reactorHeat + card.heatGenerated), false);
-
-        // Resolve Effect
-        const resolvedTarget = card.targetType === 'SELF' ? playerShip : targetEntity;
-        if (card.execute) {
-            card.execute(this.engine, playerShip, resolvedTarget);
+        if (!this.hand.includes(cardId)) {
+            return { allowed: false, reason: "Card not in hand" };
         }
 
-        // Cleanup
-        this.hand.splice(cardIndex, 1);
-        this.discardPile.push(card);
+        if (this.actionPoints < card.cost) {
+            return { allowed: false, reason: "Not enough AP" };
+        }
 
-        this.engine.notifyUpdate(); // Trigger UI re-render
+        if (this.cardsPlayedThisTurn >= 2) {
+            return { allowed: false, reason: "Max 2 cards per turn" };
+        }
+
+        if (cardId === 'rapid_reboot' && this.rapidRebootUsesThisCombat >= 2) {
+            return { allowed: false, reason: "Rapid Reboot limit reached (2/combat)" };
+        }
+
+        return { allowed: true };
+    }
+
+    async playCard(cardId, targetEntity, manager) {
+        const validation = this.canPlayCard(cardId);
+        if (!validation.allowed) {
+            console.warn(`Cannot play card ${cardId}: ${validation.reason}`);
+            return false;
+        }
+
+        const card = CardDatabase[cardId];
+        
+        // Apply costs
+        this.actionPoints -= card.cost;
+        this.casterShip.reactorHeat += card.heatGenerated;
+        if (manager) manager.addLog(`${this.casterShip.displayName} played ${card.name}.`);
+        
+        // Track card play
+        this.cardsPlayedThisTurn++;
+        if (cardId === 'rapid_reboot') {
+            this.rapidRebootUsesThisCombat++;
+        }
+
+        // Move card to discard
+        const index = this.hand.indexOf(cardId);
+        this.hand.splice(index, 1);
+        this.discard.push(cardId);
+
+        // Execute effect
+        await card.execute(this.casterShip, targetEntity, manager);
+
         return true;
     }
 
-    onTurnStart() {
+    startTurn() {
+        // Calculate AP rollover (max 1)
+        this.rolledOverAP = Math.min(1, Math.floor(this.actionPoints / 2));
+        this.actionPoints = this.maxActionPoints + this.rolledOverAP;
+        
+        this.cardsPlayedThisTurn = 0;
+        this.drawCards(2);
+    }
+
+    resetForNewCombat(newDeckIds = null) {
+        if (newDeckIds) {
+            this.deck = [...newDeckIds];
+        } else {
+            this.deck = [...this.deck, ...this.hand, ...this.discard];
+        }
+        
+        this.hand = [];
+        this.discard = [];
+        this.rapidRebootUsesThisCombat = 0;
+        this.actionPoints = this.maxActionPoints;
+        this.rolledOverAP = 0;
         this.cardsPlayedThisTurn = 0;
         
-        // Max half AP rolls over -> math.floor(3/2) = 1.
-        // Wait, user said "Max half AP rolls over". If maxAP is 3, 1 AP can roll over.
-        let rollOverAp = Math.min(this.currentAP, Math.floor(this.maxAP / 2));
-        this.currentAP = this.maxAP + rollOverAp;
+        this.shuffleDeck();
+        this.drawCards(5);
+    }
 
-        this.drawCards(2);
+    serialize() {
+        return {
+            hand: [...this.hand],
+            deckSize: this.deck.length,
+            discardSize: this.discard.length,
+            actionPoints: this.actionPoints,
+            maxActionPoints: this.maxActionPoints,
+            cardsPlayedThisTurn: this.cardsPlayedThisTurn,
+            rapidRebootUsesThisCombat: this.rapidRebootUsesThisCombat,
+            rolledOverAP: this.rolledOverAP
+        };
     }
 }
