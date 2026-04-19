@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import GridCombatManager from '../engine/GridCombatManager.js';
 import ShipEntity from '../engine/ShipEntity.js';
+import { ShipDatabase } from '../engine/ShipDatabase.js';
 
 export function useEngine() {
     const engineRef = useRef(null);
@@ -8,41 +9,48 @@ export function useEngine() {
 
     useEffect(() => {
         if (!engineRef.current) {
-            // Initialize manager with state update callback
             engineRef.current = new GridCombatManager(setState);
             
-            // Register player ship (which initializes CardSystem)
+            // Register player ship using Blueprint
+            const playerConfig = ShipDatabase['uef_halberd_cruiser'];
             const player = new ShipEntity({
+                ...playerConfig,
                 id: 'player_hero',
                 name: 'Prometheus',
-                faction: 'UEF',
-                shipType: 'Cruiser',
-                hp: 100,
-                shields: 50,
                 x: 2,
-                y: 2
+                y: 2,
+                wps: 5,
             });
             engineRef.current.registerShip(player);
 
-            // Register some enemies
+            // Register Faction Enemies
+            const nurkConfig = ShipDatabase['nurk_grit_destroyer'];
             engineRef.current.registerShip(new ShipEntity({
+                ...nurkConfig,
                 name: 'Scrapper 1',
-                faction: 'Nurk',
-                shipType: 'Destroyer',
-                hp: 60,
                 x: 10,
-                y: 10
-            }));
-            engineRef.current.registerShip(new ShipEntity({
-                name: 'Scrapper 2',
-                faction: 'Nurk',
-                shipType: 'Destroyer',
-                hp: 60,
-                x: 12,
-                y: 8
+                y: 10,
+                wps: 2
             }));
 
-            // Initial state snapshot
+            const elifConfig = ShipDatabase['elif_prism_cruiser'];
+            engineRef.current.registerShip(new ShipEntity({
+                ...elifConfig,
+                name: 'Judgment',
+                x: 12,
+                y: 6,
+                wps: 4
+            }));
+
+            const colConfig = ShipDatabase['col_hive_seed'];
+            engineRef.current.registerShip(new ShipEntity({
+                ...colConfig,
+                name: 'Spore Carrier',
+                x: 8,
+                y: 14,
+                wps: 1
+            }));
+
             engineRef.current.emitStateUpdate();
         }
     }, []);

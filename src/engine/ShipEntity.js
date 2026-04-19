@@ -16,17 +16,17 @@ export default class ShipEntity {
     this.id = config.id || crypto.randomUUID();
     this.baseName = config.name;
     this.shipType = config.shipType;
-    this.faction = config.faction;
     this.x = config.x || 0;
     this.y = config.y || 0;
-    this.maxHp = config.hp;
-    this.hp = config.hp;
+    this.maxHp = config.hp || config.maxHp;
+    this.hp = config.hp || config.maxHp;
     this.maxShields = config.shields || 0;
     this.shields = this.maxShields;
     this.speed = config.speed || 3;
     this.wps = config.wps || 0;
     this.ac = config.ac || 15;
     this.reactorHeat = 0;
+    this.deck = config.deck || [];
     this.flags = { steadyVector: true, isEvading: false };
     this.statusEffects = new Map();
     this.subsystems = {
@@ -57,6 +57,20 @@ export default class ShipEntity {
   }
 
   async takeDamage(amount, manager, isCrit = false) {
+    if (this.hasStatus('phased')) {
+        if (manager) manager.addLog(`${this.displayName} is PHASED - Damage ignored!`);
+        return;
+    }
+
+    // Nurk Passive: Junk-Shielding (15% chance to ignore hit)
+    if (this.faction === 'NURK' || this.faction === 'Nurk') {
+        const Dice = (await import('./combat/Dice.js')).default;
+        if (Dice.roll(1, 100) <= 15) {
+            if (manager) manager.addLog(`${this.displayName}: JUNK-SHIELDING ACTIVATED! Damage absorbed by debris.`);
+            return;
+        }
+    }
+
     let remainingDamage = amount;
     let hitHull = false;
 
@@ -86,6 +100,12 @@ export default class ShipEntity {
   }
 
   onTurnStart(manager) {
+    // Faction Passives
+    if (this.faction === 'COLDUNNACK' || this.faction === 'Col\'dunnack') {
+        this.hp = Math.min(this.maxHp, this.hp + 2);
+        if (manager) manager.addLog(`${this.displayName} bio-regen: +2 HP.`);
+    }
+
     for (let [effect, duration] of this.statusEffects.entries()) {
         if (effect === 'life_support_breach') {
             this.hp -= 1;

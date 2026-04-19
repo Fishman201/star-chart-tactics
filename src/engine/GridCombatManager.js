@@ -1,4 +1,5 @@
 import CardSystem from './CardSystem.js';
+import { CardDatabase } from './cards/CardDatabase.js';
 
 export default class GridCombatManager {
   constructor(updateReactCallback) {
@@ -9,6 +10,7 @@ export default class GridCombatManager {
     this.turnCount = 1;
     this.logs = ["--- COMBAT INITIALIZED ---"];
     this.cardSystem = null; 
+    this.aiCooldowns = new Map();
   }
 
   addLog(message) {
@@ -56,50 +58,69 @@ export default class GridCombatManager {
   }
 
   resolveEnemyTurn() {
-    // Basic AI Loop
     const enemies = Array.from(this.ships.values()).filter(s => s.faction !== 'UEF');
     const player = this.ships.get('player_hero');
-    
     if (!player) return;
+
+    this.aiCooldowns = this.aiCooldowns || new Map();
 
     enemies.forEach((enemy, index) => {
         setTimeout(async () => {
-            if (enemy.hp <= 0) return;
+            if (this.ships.get(enemy.id)?.hp <= 0) return;
 
             const dist = Math.max(Math.abs(enemy.x - player.x), Math.abs(enemy.y - player.y));
+            let actedWithCard = false;
 
-            // AI Action 1: Skill / Card simulation
-            if (enemy.faction === 'Nurk' && dist <= 3) {
-                // Fixed: simulate a "Harpoon" every few turns (simulated as cooldown)
-                if (this.turnCount % 2 === 0) {
-                    this.addLog(`${enemy.displayName} fires MAG-HARPOON!`);
-                    // Displacement effect
-                    if (player.x > enemy.x) player.x--;
-                    else if (player.x < enemy.x) player.x++;
-                    await player.takeDamage(2, this);
+            // 1. Check Deck for Priority Action
+            if (enemy.deck && enemy.deck.length > 0) {
+                for (const cardId of enemy.deck) {
+                    const card = CardDatabase[cardId];
+                    const cooldownKey = `${enemy.id}_${cardId}`;
+                    const currentCooldown = this.aiCooldowns.get(cooldownKey) || 0;
+
+                    if (currentCooldown === 0) {
+                        // Check range and target logic
+                        if (card.targetType === 'SELF' || (card.range && dist <= card.range)) {
+                            this.addLog(`[AI] ${enemy.displayName} uses ${card.name}!`);
+                            await card.execute(enemy, player, this);
+                            this.aiCooldowns.set(cooldownKey, 3); // 3 turn cooldown for AI cards
+                            actedWithCard = true;
+                            break;
+                        }
+                    }
                 }
             }
 
-            // AI Action 2: Move toward player
-            if (dist > 1) {
-                if (player.x > enemy.x) enemy.x++;
-                else if (player.x < enemy.x) enemy.x--;
-                
-                if (player.y > enemy.y) enemy.y++;
-                else if (player.y < enemy.y) enemy.y--;
-                
-                this.addLog(`${enemy.displayName} advances.`);
+            // 2. Cooldown Management
+            for (let [key, val] of this.aiCooldowns.entries()) {
+                if (key.startsWith(enemy.id) && val > 0) this.aiCooldowns.set(key, val - 1);
             }
 
-            // AI Action 3: Basic Attack
-            if (dist <= 2) {
-                this.executeAttack(enemy.id, 'player_hero', { name: 'Scrap-Cannon', damage: 6 });
+            // 3. Move Logic
+            if (!actedWithCard || dist > 1) {
+                // If Faction is Nurk, always close to melee. Else move if out of range.
+                const shouldMove = enemy.faction === 'NURK' || enemy.faction === 'Nurk' || dist > 2;
+                if (shouldMove && dist > 1) {
+                    if (player.x > enemy.x) enemy.x++;
+                    else if (player.x < enemy.x) enemy.x--;
+                    
+                    if (player.y > enemy.y) enemy.y++;
+                    else if (player.y < enemy.y) enemy.y--;
+                    
+                    this.addLog(`${enemy.displayName} advances.`);
+                }
+            }
+
+            // 4. Standard Attack (if not used card or still has "action")
+            const newDist = Math.max(Math.abs(enemy.x - player.x), Math.abs(enemy.y - player.y));
+            if (!actedWithCard && newDist <= 2) {
+                await this.executeAttack(enemy.id, 'player_hero', { name: 'Closing Volley', damage: 6 });
             }
 
             if (index === enemies.length - 1) {
                 setTimeout(() => this.startPlayerTurn(), 1000);
             }
-        }, 800 * (index + 1));
+        }, 1000 * (index + 1));
     });
 
     if (enemies.length === 0) {
@@ -150,10 +171,22 @@ export default class GridCombatManager {
     this.checkDeaths();
   }
 
-  checkDeaths() {
+  async checkDeaths() {
     for (let [id, ship] of this.ships.entries()) {
         if (ship.hp <= 0) {
             this.addLog(`[DESTROYED] ${ship.displayName} exploded!`);
+            
+            // Nurk Passive: Death Explosion
+            if (ship.faction === 'NURK' || ship.faction === 'Nurk') {
+                this.addLog(`FATAL OVERLOAD: ${ship.displayName} releases energy!`);
+                const targets = Array.from(this.ships.values()).filter(s => 
+                    Math.max(Math.abs(s.x - ship.x), Math.abs(s.y - ship.y)) <= 1 && s.id !== ship.id
+                );
+                for (const t of targets) {
+                    await t.takeDamage(10, this);
+                }
+            }
+
             this.ships.delete(id);
         }
     }
